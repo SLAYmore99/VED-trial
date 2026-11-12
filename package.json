@@ -1,0 +1,25 @@
+{
+  "name": "captioner",
+  "version": "1.0.0",
+  "description": "Auto-subtitle editor with word-level timing, animated caption templates and burned-in export",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SLAYmore99/VED-trial.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SLAYmore99/VED-trial/issues"
+  },
+  "homepage": "https://github.com/SLAYmore99/VED-trial#readme",
+  "dependencies": {
+    "@napi-rs/canvas": "^1.1.1",
+    "express": "^5.3.0",
+    "multer": "^2.5.0"
+  },
+  "private": true
+}

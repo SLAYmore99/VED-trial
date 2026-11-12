@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Captioner — auto subtitles editor</title>
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">CC</span> Captioner</div>
+    <div class="project-name" id="projectName">No video</div>
+    <div class="top-actions">
+      <button class="icon-btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>↶</button>
+      <button class="icon-btn" id="redoBtn" title="Redo (Ctrl+Shift+Z)" disabled>↷</button>
+      <button class="btn ghost" id="newBtn">New</button>
+      <button class="btn primary" id="exportTopBtn" disabled>Export</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <nav class="rail">
+      <button class="rail-btn active" data-tab="subtitles"><span>💬</span>Subtitles</button>
+      <button class="rail-btn" data-tab="styles"><span>🎨</span>Styles</button>
+      <button class="rail-btn" data-tab="export"><span>⬇</span>Export</button>
+    </nav>
+
+    <aside class="panel">
+      <!-- SUBTITLES -->
+      <section class="tab" data-tab="subtitles">
+        <div id="transcribeView">
+          <h2>Auto subtitles</h2>
+          <p class="muted">Transcribe speech into word-timed captions. Runs locally with Whisper.</p>
+          <label class="field">Language
+            <select id="langSel"></select>
+          </label>
+          <label class="field">Accuracy
+            <select id="modelSel">
+              <option value="large-v3">Maximum (large-v3, slowest)</option>
+              <option value="large-v3-turbo" selected>High (large-v3-turbo, recommended)</option>
+              <option value="medium">Balanced (medium)</option>
+              <option value="small">Fast (small)</option>
+              <option value="base">Fastest (base)</option>
+            </select>
+          </label>
+          <label class="field">Output
+            <select id="taskSel">
+              <option value="transcribe">Original language</option>
+              <option value="translate">Translate to English</option>
+            </select>
+          </label>
+          <label class="field">Custom vocabulary <span class="muted">(names, brands, jargon)</span>
+            <textarea id="vocab" rows="2" placeholder="e.g. Kubernetes, Anya Taylor-Joy, ChatGPT"></textarea>
+          </label>
+          <button class="btn primary wide" id="transcribeBtn" disabled>Auto subtitle</button>
+          <div class="job" id="transcribeJob" hidden>
+            <div class="job-msg"></div>
+            <div class="bar"><i></i></div>
+            <button class="btn ghost small" data-cancel>Cancel</button>
+          </div>
+          <div class="or">or</div>
+          <label class="btn ghost wide file-btn">Import SRT / VTT<input type="file" id="importSubs" accept=".srt,.vtt,text/vtt" hidden /></label>
+        </div>
+
+        <div id="editorView" hidden>
+          <div class="sub-toolbar">
+            <button class="btn ghost small" id="toggleFind">Find &amp; replace</button>
+            <button class="btn ghost small" id="toggleShift">Shift timing</button>
+            <button class="btn ghost small" id="retranscribeBtn">Re-transcribe</button>
+          </div>
+          <div class="drawer" id="findDrawer" hidden>
+            <input id="findIn" placeholder="Find" />
+            <input id="replIn" placeholder="Replace with" />
+            <label class="chk"><input type="checkbox" id="findCase" /> Match case</label>
+            <button class="btn small" id="replaceAll">Replace all</button>
+            <span class="muted" id="findCount"></span>
+          </div>
+          <div class="drawer" id="shiftDrawer" hidden>
+            <span>Move all subtitles by</span>
+            <input type="number" id="shiftAmt" value="0.10" step="0.05" style="width:70px" /> s
+            <button class="btn small" data-shift="-1">◀ Earlier</button>
+            <button class="btn small" data-shift="1">Later ▶</button>
+          </div>
+          <div class="sub-meta" id="subMeta"></div>
+          <div class="cap-list" id="capList"></div>
+        </div>
+      </section>
+
+      <!-- STYLES -->
+      <section class="tab" data-tab="styles" hidden>
+        <h2>Templates</h2>
+        <div class="presets" id="presetGrid"></div>
+
+        <h3>Layout</h3>
+        <div class="grid2">
+          <label class="field">Lines
+            <select id="chunkLines"><option value="1">1 line</option><option value="2">2 lines</option><option value="3">3 lines</option></select>
+          </label>
+          <label class="field">Words per caption
+            <select id="chunkWordsSel">
+              <option value="0">Auto</option><option value="1">1 word</option><option value="2">2 words</option>
+              <option value="3">3 words</option><option value="4">4 words</option><option value="5">5 words</option><option value="8">8 words</option>
+            </select>
+          </label>
+        </div>
+        <label class="field">Max characters per line <output id="chunkCharsOut"></output>
+          <input type="range" id="chunkChars" min="8" max="60" step="1" />
+        </label>
+        <div class="pos-row">
+          <span>Position</span>
+          <button class="btn ghost small" data-pos="0.18">Top</button>
+          <button class="btn ghost small" data-pos="0.5">Middle</button>
+          <button class="btn ghost small" data-pos="0.8">Bottom</button>
+          <span class="muted">or drag on video</span>
+        </div>
+
+        <h3>Text</h3>
+        <div class="grid2">
+          <label class="field">Font <select id="sFont"></select></label>
+          <label class="field">Weight
+            <select id="sWeight">
+              <option value="400">Regular</option><option value="500">Medium</option><option value="600">Semibold</option>
+              <option value="700">Bold</option><option value="800">Extra bold</option><option value="900">Black</option>
+            </select>
+          </label>
+        </div>
+        <label class="field">Size <output data-for="sSize"></output><input type="range" id="sSize" min="2" max="16" step="0.1" data-key="fontSize" /></label>
+        <label class="field">Max width <output data-for="sMaxW"></output><input type="range" id="sMaxW" min="30" max="100" step="1" data-key="maxWidth" /></label>
+        <label class="field">Line height <output data-for="sLH"></output><input type="range" id="sLH" min="0.9" max="1.8" step="0.02" data-key="lineHeight" /></label>
+        <label class="field">Letter spacing <output data-for="sLS"></output><input type="range" id="sLS" min="-0.05" max="0.3" step="0.01" data-key="letterSpacing" /></label>
+        <div class="grid3">
+          <label class="field">Text <input type="color" data-key="textColor" /></label>
+          <label class="field">Highlight <input type="color" data-key="highlightColor" /></label>
+          <label class="chk tall"><input type="checkbox" data-key="uppercase" /> UPPERCASE</label>
+        </div>
+
+        <h3>Animation</h3>
+        <div class="grid2">
+          <label class="field">Word effect
+            <select data-key="wordAnim">
+              <option value="none">None</option><option value="highlight">Highlight active word</option>
+              <option value="karaoke">Karaoke sweep</option><option value="box">Word box</option>
+              <option value="pop">Pop active word</option><option value="reveal">Reveal word by word</option>
+              <option value="bounce">Bounce</option><option value="underline">Underline</option>
+            </select>
+          </label>
+          <label class="field">Caption entrance
+            <select data-key="captionAnim">
+              <option value="none">None</option><option value="fade">Fade</option><option value="pop">Pop</option><option value="slide">Slide up</option>
+            </select>
+          </label>
+        </div>
+        <div class="grid2">
+          <label class="field">Word box color <input type="color" data-key="boxColor" /></label>
+          <label class="field">Word box text <input type="color" data-key="boxTextColor" /></label>
+        </div>
+
+        <h3>Outline &amp; shadow</h3>
+        <div class="grid2">
+          <label class="field">Outline <input type="color" data-key="strokeColor" /></label>
+          <label class="field">Thickness <output data-for="sStroke"></output><input type="range" id="sStroke" min="0" max="0.3" step="0.005" data-key="strokeWidth" /></label>
+          <label class="field">Shadow <input type="color" data-key="shadowColor" /></label>
+          <label class="field">Opacity <output data-for="sShO"></output><input type="range" id="sShO" min="0" max="1" step="0.05" data-key="shadowOpacity" /></label>
+          <label class="field">Blur <output data-for="sShB"></output><input type="range" id="sShB" min="0" max="0.8" step="0.01" data-key="shadowBlur" /></label>
+          <label class="field">Offset Y <output data-for="sShY"></output><input type="range" id="sShY" min="-0.2" max="0.2" step="0.01" data-key="shadowY" /></label>
+        </div>
+
+        <h3>Background</h3>
+        <div class="grid2">
+          <label class="field">Type
+            <select data-key="background">
+              <option value="none">None</option><option value="line">Per line</option><option value="block">Full block</option><option value="word">Per word</option>
+            </select>
+          </label>
+          <label class="field">Color <input type="color" data-key="bgColor" /></label>
+          <label class="field">Opacity <output data-for="sBgO"></output><input type="range" id="sBgO" min="0" max="1" step="0.05" data-key="bgOpacity" /></label>
+          <label class="field">Roundness <output data-for="sBgR"></output><input type="range" id="sBgR" min="0" max="0.6" step="0.01" data-key="bgRadius" /></label>
+        </div>
+      </section>
+
+      <!-- EXPORT -->
+      <section class="tab" data-tab="export" hidden>
+        <h2>Export video</h2>
+        <p class="muted">Burns the captions into the video at its original resolution and frame rate. The result matches the preview exactly.</p>
+        <label class="field">Quality
+          <select id="qualitySel">
+            <option value="draft">Draft (fast)</option>
+            <option value="high" selected>High</option>
+            <option value="max">Maximum (slow)</option>
+          </select>
+        </label>
+        <button class="btn primary wide" id="renderBtn" disabled>Export MP4 with captions</button>
+        <div class="job" id="renderJob" hidden>
+          <div class="job-msg"></div>
+          <div class="bar"><i></i></div>
+          <button class="btn ghost small" data-cancel>Cancel</button>
+        </div>
+        <a class="btn wide" id="downloadLink" hidden>Download video</a>
+
+        <h3>Subtitle files</h3>
+        <div class="grid2">
+          <button class="btn ghost" data-dl="srt" disabled>SRT</button>
+          <button class="btn ghost" data-dl="vtt" disabled>VTT</button>
+          <button class="btn ghost" data-dl="txt" disabled>Transcript TXT</button>
+          <button class="btn ghost" data-dl="json" disabled>Word timings JSON</button>
+        </div>
+        <h3>Project</h3>
+        <div class="grid2">
+          <button class="btn ghost" id="saveProject" disabled>Save project</button>
+          <label class="btn ghost file-btn">Open project<input type="file" id="openProject" accept=".json" hidden /></label>
+        </div>
+      </section>
+    </aside>
+
+    <section class="stage-wrap">
+      <div class="stage" id="stage">
+        <div class="dropzone" id="dropzone">
+          <div class="dz-inner">
+            <div class="dz-icon">⬆</div>
+            <h1>Upload a video</h1>
+            <p>Drag &amp; drop a file here, or click to browse.<br/>MP4, MOV, WebM, MKV, MP3, WAV…</p>
+            <input type="file" id="fileInput" accept="video/*,audio/*,.mkv,.mov" hidden />
+            <div class="job" id="uploadJob" hidden><div class="job-msg"></div><div class="bar"><i></i></div></div>
+          </div>
+        </div>
+        <div class="player" id="player" hidden>
+          <video id="video" playsinline preload="auto"></video>
+          <canvas id="overlay"></canvas>
+        </div>
+      </div>
+      <div class="controls" id="controls">
+        <button class="icon-btn" id="playBtn" title="Play/Pause (Space)">▶</button>
+        <span class="time"><span id="curTime">00:00.0</span> / <span id="durTime">00:00.0</span></span>
+        <div class="spacer"></div>
+        <label class="muted small">Zoom <input type="range" id="zoom" min="20" max="400" value="90" /></label>
+      </div>
+      <div class="timeline" id="timeline">
+        <div class="tl-inner" id="tlInner">
+          <div class="tl-ruler" id="tlRuler"></div>
+          <div class="tl-track" id="tlTrack"></div>
+          <div class="tl-playhead" id="tlPlayhead"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="js/captions.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
